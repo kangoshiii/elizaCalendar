@@ -205,8 +205,8 @@
       opacity: 0;
       transform: translateY(20px);
       animation: fadeIn 0.6s ease-out forwards;
-      animation-delay: calc(var(--index) * 0.05s);
-      transition: background-color 0.5s ease;
+      animation-delay: calc(var(--index) * 0.02s);
+      transition: background-color 0.2s ease;
     }
   
     #calendar td.has-note {
@@ -600,7 +600,9 @@
       margin-right: 10px;
     }
   </style>
-  
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 </head>
 <body>
   <header>
@@ -765,16 +767,86 @@
         }
       });
 
-      clearAllButton.addEventListener('click', () => {
-        if (confirm('Вы уверены, что хотите очистить все записи для текущего бара?')) {
-          const prefix = `calendar_${currentBar}_`;
-          Object.keys(localStorage)
-            .filter(key => key.startsWith(prefix))
-            .forEach(key => localStorage.removeItem(key));
-          generateCalendar(parseInt(yearSelect.value), parseInt(monthSelect.value));
-          clearPosterContent();
-        }
+      function takeScreenshot() {
+  // Сохраняем текущее состояние чекбоксов
+  const wasTextView = toggleTextViewCheckbox.checked;
+  const wasBandsOnly = toggleBandsOnlyCheckbox.checked;
+
+  // Клонируем текущее состояние календаря
+  const originalCalendar = calendar.cloneNode(true);
+
+  // Элементы для скрытия
+  const elementsToHide = [
+    calendar.querySelector('thead'),
+    document.querySelector('header'),
+    document.querySelector('.button-container')
+  ];
+
+  // Скрываем элементы управления
+  elementsToHide.forEach(el => {
+    if (el) el.style.display = 'none';
+  });
+
+  // Полностью отключаем анимацию
+  const styleEl = document.createElement('style');
+  styleEl.innerHTML = `
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+    #calendar td {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  // Создаем один заголовок 
+  const screenshotTitle = document.createElement('div');
+  screenshotTitle.style.cssText = `
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: left;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  `;
+  screenshotTitle.textContent = calendarTitle.textContent;
+
+
+  // Небольшая задержка для полной отрисовки
+  setTimeout(() => {
+    html2canvas(document.body, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: currentBar === 'elmucho' ? '#ffebd9' : '#f0f7f0'
+    }).then(canvas => {
+      // Возвращаем элементы управления
+      elementsToHide.forEach(el => {
+        if (el) el.style.display = '';
       });
+
+      // Удаляем временный заголовок и стили
+      screenshotTitle.remove();
+      styleEl.remove();
+
+      // Создаем ссылку для скачивания
+      const link = document.createElement('a');
+      link.download = `${calendarTitle.textContent.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+
+      // Восстанавливаем состояние чекбоксов
+      toggleTextViewCheckbox.checked = wasTextView;
+      toggleBandsOnlyCheckbox.checked = wasBandsOnly;
+    });
+  }, 100);  // Небольшая задержка для полной отрисовки
+}
+
+// Заменяем кнопку "Очистить все записи" на "Скрин"
+clearAllButton.textContent = 'Скрин';
+clearAllButton.addEventListener('click', takeScreenshot);
 
       toggleTextViewCheckbox.addEventListener('change', () => {
         generateCalendar(parseInt(yearSelect.value), parseInt(monthSelect.value));
